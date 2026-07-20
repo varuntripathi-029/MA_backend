@@ -23,7 +23,7 @@ from app.api.schemas import (
     ScanCreateRequest,
     ScanCreateResponse,
 )
-from app.db.session import AsyncSessionLocal, get_db
+from app.db.session import get_db, resilient_session
 from app.models import HistoricalScore, Project, Recommendation, Report, Scan
 from app.pipeline.runner import run_pipeline
 
@@ -36,7 +36,7 @@ async def _execute_scan(scan_id: uuid.UUID, url: str) -> None:
     """The background task: owns its own DB session, independent of the
     request that queued it (the request's session may already be closed by
     the time this runs)."""
-    async with AsyncSessionLocal() as session:
+    async with resilient_session() as session:
         scan = await session.get(Scan, scan_id)
         scan.status = "running"
         scan.started_at = datetime.now(timezone.utc)
@@ -46,7 +46,7 @@ async def _execute_scan(scan_id: uuid.UUID, url: str) -> None:
         result = await run_pipeline(url)
     except Exception as e:
         logger.exception("Pipeline failed for scan %s (%s)", scan_id, url)
-        async with AsyncSessionLocal() as session:
+        async with resilient_session() as session:
             scan = await session.get(Scan, scan_id)
             scan.status = "failed"
             scan.error_message = str(e)
@@ -54,7 +54,7 @@ async def _execute_scan(scan_id: uuid.UUID, url: str) -> None:
             await session.commit()
         return
 
-    async with AsyncSessionLocal() as session:
+    async with resilient_session() as session:
         scan = await session.get(Scan, scan_id)
         scan.status = "done"
         scan.completed_at = datetime.now(timezone.utc)

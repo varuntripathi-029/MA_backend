@@ -4,6 +4,8 @@ so these tests don't touch the network or Groq — they exercise the API
 contract and DB writes, not the pipeline logic (that's covered by
 test_pipeline_integration.py and the Module 4/6/7/8 unit tests)."""
 
+from contextlib import asynccontextmanager
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -52,7 +54,12 @@ async def _fake_run_pipeline(url: str) -> PipelineResult:
 
 @pytest.fixture
 def client(test_sessionmaker, monkeypatch):
-    monkeypatch.setattr(scans_module, "AsyncSessionLocal", test_sessionmaker)
+    @asynccontextmanager
+    async def fake_resilient_session():
+        async with test_sessionmaker() as session:
+            yield session
+
+    monkeypatch.setattr(scans_module, "resilient_session", fake_resilient_session)
     monkeypatch.setattr(scans_module, "run_pipeline", _fake_run_pipeline)
 
     async def override_get_db():
