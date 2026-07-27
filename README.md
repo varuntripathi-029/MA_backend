@@ -14,6 +14,15 @@ MX_rating scores how "agent-ready" a website is — how easily an AI agent (not 
 
 Scans run as an in-process FastAPI `BackgroundTask` — `POST /api/scan` returns a scan id immediately with status `pending`, and `GET /api/report/{id}` is polled until the task moves it through `running → done/failed`. No queue, no worker process.
 
+## API
+
+- `POST /api/scan` — queue a scan for a URL, returns `{scan_id, project_id, status}` (202)
+- `POST /api/rescan` — queue another scan for an already-known `project_id`
+- `GET /api/report/{scan_id}` — poll scan status; includes the full report (profile, score, findings, narrative, recommendations) once `done`
+- `GET /api/history` — look up past scans by `scan_ids`/`project_ids` (no auth in v1; the frontend tracks its own ids client-side)
+- `GET /api/methodology` — the scoring weights/rationale, served straight from `app/pipeline/scoring.py`
+- `GET /health` — liveness check
+
 ## Problems we hit along the way (and the fixes)
 
 - **Windows + Playwright + async Postgres don't mix by default.** Playwright's async browser driver requires Windows' `ProactorEventLoop`; `psycopg`'s async mode hard-refuses to run under it. Fix: switched the DB driver to `asyncpg`, which has no such restriction, so crawler and DB session share one event loop in-process.
@@ -40,6 +49,7 @@ Scans run as an in-process FastAPI `BackgroundTask` — `POST /api/scan` returns
 2. `docker-compose up --build` (spins up Postgres + the backend, running migrations automatically on boot).
 3. API is now live at `http://localhost:8000` (`GET /health` to check).
 4. Hit `POST /api/scan` with a `url`, then poll `GET /api/report/{scan_id}` for results.
+5. Run tests: `pip install -e ".[dev]"` then `pytest`.
 
 ---
 
