@@ -40,3 +40,7 @@ Scans run as an in-process FastAPI `BackgroundTask` — `POST /api/scan` returns
 2. `docker-compose up --build` (spins up Postgres + the backend, running migrations automatically on boot).
 3. API is now live at `http://localhost:8000` (`GET /health` to check).
 4. Hit `POST /api/scan` with a `url`, then poll `GET /api/report/{scan_id}` for results.
+
+---
+
+Varun Tripathi
